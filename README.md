@@ -41,6 +41,7 @@ Users
 
 
 
+
 ## Task 1:
 
 1. Fill in the functionality for users APIs defined `src/app.ts`
@@ -90,6 +91,7 @@ Meter will have MeterId, Name, readings
 2. API to store meter readings
 
 ```shell
+    
     curl -X POST -d '{"units": 5, "time":"2024-05-31T10:00:00.000Z"}' 'http://localhost:3000/meters/1/readings'
 ```
 
