@@ -261,32 +261,6 @@ app.post('/meters', (req: Request, res: Response) => {
 });
 
 
-//TASK-5:
-
-// app.get('/users/:id/bill',(req,res)=>{
-//     const id = req.params.id;
-//     const user =users.find()
-//     if(user){
-//         const provider = providers.find(item=>item.id===user.providerId)
-//         const userMeter = meters.find(meter => meter.userId === user.id);
-//         if(userMeter){
-//             const userReadings = userMeter.readings
-//             const totalUnits = userReadings.reduce((sum, reading) => sum + reading.units, 0);
-//             const amount = totalUnits * (provider ? provider.charge : 0);
-//             const op={
-//                 "user ID": user.id,
-//                 "amount": amount,
-//             }
-//             res.json(op);
-//         }
-//         else{
-//             res.send("User not found");
-//         }
-//     }
-//     else{
-//         res.send("No user found")
-//     }
-// })
 
     
 // TASK-5:
