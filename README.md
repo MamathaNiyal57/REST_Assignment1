@@ -124,3 +124,25 @@ readings = [
 ]
 
 example response: {user_id: 1, amount: 65}
+
+
+
+curl -X POST http://localhost:3000/users -H "Content-Type: application/json" -d '{"username": "mammu", "password": "mammu123", "email": "mammu@gmail.com", "fullname": "mamatha niyal", "role": "user"}'
+curl -X POST http://localhost:3000/providers -H "Content-Type: application/json" -d '{"name": "PowerCo", "charge": 0.12}'
+curl -X POST http://localhost:3000/users/1/subscribe -H "Content-Type: application/json" -d '{"providerId": 1}'
+curl -X POST http://localhost:3000/meters -H "Content-Type: application/json" -d '{"userId": 1, "name": "Meter A"}'
+curl -X POST http://localhost:3000/meters/1/readings -H "Content-Type: application/json" -d '{"units": 100, "time": "2024-06-20T08:00:00Z"}'
+curl -X GET 'http://localhost:3000/users/1/bill'
+curl -X GET "http://localhost:3000/users/1/unitsConsumed?days=7" -H 'Content-Type: application/json' -d '{"username":"mammu","password":"mammu123"}'
+
+curl -X GET 'http://localhost:3000/users/1/bill'
+curl -X GET 'http://localhost:3000/users/1/topProviders'
+curl -X GET 'http://localhost:3000/users?limit=5&page=2' -H "role: admin"
+
+curl -X GET 'http://localhost:3000/users' -H 'username: mammu' -H 'password: mammu123' -H 'role: admin'
+
+
+
+curl -X POST http://localhost:3000/providers -H "Content-Type: application/json" -d '{"name": "ElectricitySaver", "charge": 0.10}'
+
+curl -X POST http://localhost:3000/providers -H "Content-Type: application/json" -d '{"name": "EnergyPro", "charge": 0.15}'

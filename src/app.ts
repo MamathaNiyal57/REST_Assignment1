@@ -9,7 +9,7 @@ app.use(express.json());
 
 
 //TASK-1:
-
+type  roles ="user"|"admin"
 type User = {
     id:number,
     username:string,
@@ -17,60 +17,166 @@ type User = {
     email:string,
     fullname:string,
     providerId?:number
+    role?: roles;
 }
+type UserDTO = {
+    id: number,
+    username: string,
+    email: string,
+    fullname: string,
+    providerId?: number,
+    role?: roles;
+
+};
 
 let users:User[] = [];
 
-app.get('/users', (req, res) => {
-    res.json(users)                        
-});
+// app.get('/users', (req, res) => {
+//     res.json(users)                        
+// });
 
-// Create a user with attributes username, password, email and fullname
+
+//Task-7:
+
+const rateLimit = 60 * 1000; // 1 minute
+const maxRequestsPerWindow = 10;
+
+const requestCounts: { [key: string]: { count: number; startTime: number } } = {};
+
+const rateLimiter = (req: Request, res: Response, next: Function) => {
+    const userId = req.params.id;
+    const currentTime = Date.now();
+
+    if (!requestCounts[userId]) {
+        requestCounts[userId] = { count: 1, startTime: currentTime };
+    } else {
+        const timeElapsed = currentTime - requestCounts[userId].startTime;
+
+        if (timeElapsed < rateLimit) {
+            if (requestCounts[userId].count >= maxRequestsPerWindow) {
+                return res.json( "Too many requests" );
+            } else {
+                requestCounts[userId].count += 1;
+            }
+        } else {
+            requestCounts[userId] = { count: 1, startTime: currentTime };
+        }
+    }
+
+    next();
+};
+
+app.use('/',rateLimiter);
 app.post('/users', (req: Request, res: Response) => {
     const id = users.length +1;
     const username = req.body.username;
     const password = req.body.password;
     const email = req.body.email;
     const fullname = req.body.fullname;
+    const role =  req.body.role;
 
     const newUser = {
         "id": id,
         "username": username,
         "password": password,
         "email": email,
-        "fullname": fullname
+        "fullname": fullname,
+        "role" : role
 
     }
     users.push(newUser);
     console.log(req.body);
     res.send('hello')
-    // use req.body
-});
-
-// Return a user with parameter id if not exists return message saying `user not found`
-app.get('/users/:id', (req: Request, res: Response) => {
-        const id = parseInt(req.params.id);
-        const user = users.find(user => user.id === id);
-
-        if(user){
-            res.json(user);
-
-        }else{
-            res.json('user not found');
-        }
 
 });
 
+
+const Authentication = (req:Request, res:Response,next: Function)=>{
+    const username = req.body.username;
+    const password = req.body.password;
+    const id=req.params.id
+    if(!username && !password){
+        return res.status(401).json({
+            error: 'username and password are required',
+            
+        });
+    }
+    const user = users.find(u=> u.username === username && u.password === password);
+    if(!user){
+        return res.status(403).json({
+            error: 'Invalid username or password'
+        });
+    }
+    console.log(user.id)
+    console.log(id)
+    if(user.id===parseInt(id)){
+       // console.log("cameinside");
+        next();
+    }
+    else{
+        res.status(404).send("Not Found");
+        //console.log("yes");
+    }
+};
+
+//Middleware to check if user is admin
+const isAdmin =(req:Request, res:Response, next: Function) =>{
+    //console.log("Hi")
+    const role = req.headers['role']
+    // console.log(req.body.role)
+    if(role != "admin"){
+        return res.json('Admin access required');
+    }
+    next();
+};
+
+
+// Accessible only to admin
+app.get('/users', isAdmin, (req, res) => {
+    const userDTOs: UserDTO[] = users.map(user => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        fullname: user.fullname,
+        providerId: user.providerId,
+        role: user.role
+    }));
+    res.json(userDTOs);
+});
+
+//accessible only to authenticated user
+app.get('/users/:id', Authentication,  (req,res) => {
+    const userId = parseInt(req.params.id);
+    // if(req.body.id !== userId){
+    //     return res.json('Access denied');
+    // }
+    
+    const user = users.find(u => u.id === userId);
+    if(!user) {
+        return res.json('User not found');
+    
+    }
+    const userDTO: UserDTO = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        fullname: user.fullname,
+        providerId: user.providerId,
+        role: user.role
+    };
+
+    res.json(userDTO);
+
+});
+                                                                                                    
 
 // update user information for given id 
-app.put('/users/:id', (req: Request, res:Response) => {
-    // req.params.id
+app.put('/users/:id',Authentication,(req: Request, res:Response) => {
+   
     const id = parseInt(req.params.id);
     let user = users.find(user => user.id === id);
 
     if(user){
-        console.log(req.body)
-        console.log(user)
         user = {...user,...req.body}
         console.log(user)
         //     "id": userIndex+1,
@@ -90,10 +196,10 @@ app.put('/users/:id', (req: Request, res:Response) => {
 
 
 // delete user for given id
-app.delete('/users/:id', (req: Request, res: Response) => {
+app.delete('/users/:id', Authentication, (req: Request, res: Response) => {
 
     const id = parseInt(req.params.id);
-    const { username, password, email, fullname} = req.body;
+    // const { username, password, email, fullname} = req.body;
 
     const userIndex =  users.findIndex(user => user.id === id);
     if(userIndex !== -1){
@@ -103,12 +209,7 @@ app.delete('/users/:id', (req: Request, res: Response) => {
     }else{
         res.json("user not found");
     }
-    // req.params.id
 });
-
-
-
-
 
 
 //TASK-2:
@@ -139,7 +240,7 @@ app.post('/providers', (req: Request, res: Response) => {
     providers.push(newProvider);
     console.log(req.body);
     res.send('provider created')
-    // use req.body
+    
 });
 
 app.get('/providers/:id', (req: Request, res: Response) => {
@@ -152,7 +253,6 @@ app.get('/providers/:id', (req: Request, res: Response) => {
     }else{
         res.json('user not found');
     }
-
 });
 
 app.delete('/providers/:id', (req: Request, res: Response) => {
@@ -283,15 +383,197 @@ app.get('/users/:userId/bill',(req: Request, res: Response) => {
         return res.json('No meters found for this user');
     }
 
-    // Calculate total units consumed
+    // Calculating total units consumed
     const userReadings  = userMeter.readings;
     const totalUnits = userReadings.reduce((sum, reading) => sum + reading.units, 0);
     const amount = totalUnits * (provider ? provider.charge : 0);
 
-    // Calculate the bill
+    // Calculating the bill
     res.json({ userId: user.id, amount: amount });
 });
 
+
+
+//Part-2 task-2 
+
+function calculateUnitsConsumed(readings: Reading[], startDate: Date, endDate: Date) {
+    let totalUnits = 0;
+    for (const reading of readings) {
+
+        const readingDate = new Date(reading.time); // converting time of reading to date object
+        console.log("readingDate",readingDate);
+        if (readingDate >= startDate && readingDate <= endDate) {
+
+            totalUnits += reading.units;
+        }
+    }
+    return totalUnits;
+}
+
+app.get('/users/:id/unitsConsumed', Authentication, (req: Request, res: Response) => {
+    const userId = parseInt(req.params.id);
+    const days = req.query.days ? parseInt(req.query.days as string) : undefined;
+
+    console.log(days)
+    if (days === undefined || days <= 0) {
+        return res.json( 'Invalid number of days' );
+    }
+
+    const user = users.find(user => user.id === userId);
+    if (!user) {
+        return res.json('User not found');
+    }
+
+    const userMeter = meters.find(meter => meter.userId === userId);
+    if (!userMeter) {
+        return res.json('No meters found for this user');
+    }
+
+    const todayDate = new Date();
+    // const startDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate() - days);
+    const startDate = new Date(todayDate.getTime() - days * 24 * 60 * 60 * 1000);
+    const endDate = todayDate;
+    console.log(startDate, endDate);
+    const totalUnits = calculateUnitsConsumed(userMeter.readings, startDate, endDate);
+
+    res.json({ userId, totalUnits });
+});
+
+
+
+//task -3:
+
+function calculateUnitsConsumedInBillingCycle(readings: Reading[]) {
+    
+    const todayDate = new Date();
+    const startDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+    const endDate = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0);
+    
+    let totalUnits = 0;
+
+    for (const reading of readings) {
+        const readingDate = new Date(reading.time);
+        
+        if (readingDate >= startDate && readingDate <= endDate) {
+            
+                totalUnits += reading.units;
+            }
+    }
+    const chargePerUnit = 0.10;
+    const amount = totalUnits * chargePerUnit;
+
+    return amount;
+
+    //return totalUnits;
+}
+app.get('/users/:userId/bill', Authentication, (req: Request, res: Response) => {
+    const userId = parseInt(req.params.userId);
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+
+
+    const user = users.find(user => user.id === userId);
+    if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+
+    
+    const userMeter = meters.find(meter => meter.userId === userId);
+    if (!userMeter) {
+        return res.status(404).json({ error: 'No meters found for this user' });
+    }
+
+    const amount = calculateUnitsConsumedInBillingCycle(userMeter.readings);
+
+    res.json({ userId: user.id, amount: amount });
+});
+
+//task-4:
+
+
+function calculateTotalCost(userId: number, providerId: number): number | null {
+    const userMeter = meters.find(meter => meter.userId === userId);
+    const provider = providers.find(provider => provider.id === providerId);
+
+    if (!userMeter || !provider) {
+        return null;
+    }
+
+    let totalUnits = 0;
+    for (const reading of userMeter.readings) {
+        totalUnits += reading.units;
+    }
+
+    const totalCost = totalUnits * provider.charge;
+    return totalCost;
+}
+// Endpoint to get top 3 providers with least cost
+app.get('/users/:userId/topProviders', (req: Request, res: Response) => {
+    const userId = parseInt(req.params.userId);
+
+
+    const providerCosts: { providerId: number, totalCost: number }[] = [];
+
+    // Calculating total cost for each provider and store in providerCosts array
+    for (const provider of providers) {
+        const totalCost = calculateTotalCost(userId, provider.id);
+        if (totalCost !== null) {
+            providerCosts.push({ providerId: provider.id, totalCost });
+        }
+    }
+
+
+    for (let i = 0; i < providerCosts.length - 1; i++) {
+        for (let j = i + 1; j < providerCosts.length; j++) {
+            if (providerCosts[i].totalCost > providerCosts[j].totalCost) {
+                const temp = providerCosts[i];
+                providerCosts[i] = providerCosts[j];
+                providerCosts[j] = temp;
+            }
+        }
+    }
+
+    // Extract top 3 providers
+    const topProviders: { id: number, name: string, charge: number, totalCost: number }[] = [];
+    for (let i = 0; i < Math.min(3, providerCosts.length); i++) {
+        const provider = providers.find(p => p.id === providerCosts[i].providerId);
+        if (provider) {
+            topProviders.push({
+                id: provider.id,
+                name: provider.name,
+                charge: provider.charge,
+                totalCost: providerCosts[i].totalCost
+            });
+        }
+    }
+
+
+    res.json(topProviders);
+});
+
+
+
+//task-5:
+
+app.get('/users', (req: Request, res: Response) => {
+    const limit = parseInt(req.query.limit as string) || 5; // Default limit to 5 users
+    const page = parseInt(req.query.page as string) || 1;   // Default page to 1
+
+    const offset = (page - 1) * limit;
+   
+    const paginatedUsers = users.slice(offset, offset + limit);
+
+    res.json({
+        users: paginatedUsers,
+        currentPage: page,
+        totalPages: Math.ceil(users.length / limit)
+    });
+});
+
+
+
+                                                                                               
+
 app.listen(port, () => {
-    console.log(`server is running on port http://localhost:${port}`)
-})
+    console.log(`Server is running on http://localhost:${port}`);
+});
